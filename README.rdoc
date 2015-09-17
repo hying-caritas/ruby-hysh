@@ -1,0 +1,116 @@
+= Ruby HYSH
+
+Ruby HYSH stands for Huang Ying's SHell in Ruby.
+
+Bash interactive shell and scripts are very important tools to use
+Linux/Unix.  But I don't like the syntax of bash, would rather to do
+that in Ruby.  This work is based on HYSH (Huang Ying's SHell in
+Common Lisp: https://github.com/hying-caritas/hysh).
+
+== Example
+
+  def dpkg_installed(package_names = nil)
+    Hysh.out_lines ->{
+      Hysh.pipe ['dpkg', '-l'],
+        if package_names
+  	['egrep', "(#{package_names.join '|'})"]
+        else
+  	['cat']
+        end
+    }
+  end
+
+or write the filter in Ruby.
+
+  def dpkg_installed(package_names = nil)
+    Hysh.out_lines ->{
+      Hysh.pipe ['dpkg', '-l'] {
+        proc_line = if package_names
+  		    ->l{
+  		      if package_names.any? { |pkg|
+  			   l.index pkg
+  			 }
+  			l
+  		      end
+  		    }
+  		  else
+  		    ->l{ l }
+  		  end
+        Hysh.filter_line &proc_line
+      }
+    }
+  end
+
+Compared with Kernel.system, HYSH provides different coding style for
+IO redirection, Environment manipulating, Setting current directory,
+pipe line support without shell, and writing pipeline filter in Ruby.
+
+== Common conventions
+
+There are mainly two categories of functions in HYSH.  Some functions
+compute (run a function or command), some other functions setup
+environment (IO redirection, manipulating environment, changing
+current directory, etc.) for computing.
+
+Functions to setup environment for some computing have one parameter
+to several parameters (sometimes via block too) to specify the one to
+several computing (for example, pipe).  Most computing functions
+return whether computing is successful ($? holds the details status if
+the computing is synchronous and run as the process).  Most functions
+to setup environment will return the return value of one of the given
+computing. Most out_, and io_ family functions will return two values,
+the first is the string returned, the second is the run value of the
+computing.
+
+== Run external program
+
+Unlike Kernel.system, HYSH typically uses only a very basic run
+function (although it is possible to specify options), because most IO
+redirection and glue between programs are done in Ruby functions.
+
+== IO redirection
+
+IO redirection in Unix process world means replace the original
+standard input, output, etc. file descriptors with file, pipe, etc.
+In HYSH, IO redirection is defined for Ruby too.  That means replace
+the original $stdin, $stdout, and $stderr, etc. IOs with other IOs of
+file, pipe, etc.  So for an IO redirection, a Ruby global IO variable
+name and a file descriptor number can be specified.  After that is
+done, all Ruby function will reference the replaced IOs for the global
+IO variables, and the specified file descriptors redirection will be
+setup for the external programs too.
+
+== Process
+
+The process in HYSH is used to represent a Ruby fork or Unix process.
+The child processes will inherited all IO redirection, environment
+variables, and current directory, etc. from their parent processes.
+
+== Glue between processes
+
+The most important glue is pipeline.  I think this is the flagship of
+UNIX worlds.  Now we can do that in Ruby.  Any processes can be
+connected with pipeline, regardless Ruby fork or Unix process.
+
+Other glue mechanisms are provided too, including and, or, and
+sequence etc.
+
+== External program error processing
+
+External program error is defined as exiting with non-zero status,
+that is, failed in UNIX sense.  It can be ignored, warned or an
+exception can be raised to stop running the following code.
+
+== Arbitrary combination
+
+The power of HYSH is that it provide a more flexible way to combine
+external programs, IO redirection, glue (pipeline, etc.), etc. with
+Ruby.
+
+For example, to encapsulate some external filter program in Ruby with
+string as input and output.  It can be accomplished with:
+
+ (Hysh.in_s input-string (Hysh.out_s (Hysh.run filter arg1 arg2 ...)))
+
+For given input-string and arguments, the form will return the result
+string and exit success status of the filter.
