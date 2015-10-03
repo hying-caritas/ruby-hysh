@@ -23,6 +23,8 @@ module Hysh
   @@on_command_error = IGNORE
   # :startdoc:
 
+  module_function
+
   # :section: Common Utilities
 
   # :call-seq:
@@ -32,7 +34,7 @@ module Hysh
   # +val+, then run the block, return the return value of the block.
   # Restore the original value of the variable upon returning.
   # Multiple pairs of +var_name+ and +val+ can be specified.
-  def self.with_set_globals(*var_vals)
+  def with_set_globals(*var_vals)
     orig_var_vals = var_vals.each_slice(2).map { |var, val|
       svar = var.to_s
       unless svar.start_with? '$'
@@ -64,7 +66,7 @@ module Hysh
   # programs, then run the block, return the return value of the
   # block.  Restore the original value of the variable and cancel the
   # arrangement to external program redirections upon returning.
-  def self.with_redirect_to(fd, var, io, &b)
+  def with_redirect_to(fd, var, io, &b)
     @@redirections.push([fd, io]) if fd
     if var
       with_set_globals(var, io, &b)
@@ -83,7 +85,7 @@ module Hysh
   # then run the block, return the return value of the block.  Restore
   # the original value of the $stdin and cancel the arrangement to
   # external program redirections upon returning.
-  def self.with_redirect_stdin_to(io, &b)
+  def with_redirect_stdin_to(io, &b)
     with_redirect_to(0, :$stdin, io, &b)
   end
 
@@ -95,7 +97,7 @@ module Hysh
   # then run the block, return the return value of the block.  Restore
   # the original value of the $stdout and cancel the arrangement to
   # external program redirections upon returning.
-  def self.with_redirect_stdout_to(io, &b)
+  def with_redirect_stdout_to(io, &b)
     with_redirect_to(1, :$stdout, io, &b)
   end
 
@@ -107,7 +109,7 @@ module Hysh
   # then run the block, return the return value of the block.  Restore
   # the original value of the $stderr and cancel the arrangement to
   # external program redirections upon returning.
-  def self.with_redirect_stderr_to(io, &b)
+  def with_redirect_stderr_to(io, &b)
     with_redirect_to(2, :$stderr, io, &b)
   end
 
@@ -121,7 +123,7 @@ module Hysh
   # block, return the return value of the block.  Restore the original
   # value of the $stdin and cancel the arrangement to external program
   # redirections upon returning.
-  def self.with_redirect_stdin_to_file(*args, &b)
+  def with_redirect_stdin_to_file(*args, &b)
     File.open(*args) { |f|
       with_redirect_stdin_to f, &b
     }
@@ -137,7 +139,7 @@ module Hysh
   # block, return the return value of the block.  Restore the original
   # value of the $stdout and cancel the arrangement to external
   # program redirections upon returning.
-  def self.with_redirect_stdout_to_file(*args, &b)
+  def with_redirect_stdout_to_file(*args, &b)
     if args.size == 1
       args.push "w"
     end
@@ -156,7 +158,7 @@ module Hysh
   # block, return the return value of the block.  Restore the original
   # value of the $stderr and cancel the arrangement to external
   # program redirections upon returning.
-  def self.with_redirect_stderr_to_file(*args, &b)
+  def with_redirect_stderr_to_file(*args, &b)
     if args.size == 1
       args.push "w"
     end
@@ -165,7 +167,7 @@ module Hysh
     }
   end
 
-  def self.__out_io(args, options, proc_arg) # :nodoc:
+  def __out_io(args, options, proc_arg) # :nodoc:
     Tempfile.open(TEMP_BASE) { |tempf|
       tempf.unlink
       ret = nil
@@ -190,7 +192,7 @@ module Hysh
   # collected output string and the return value of the block or the
   # function or exit success status of the external program as a two
   # element array.  Restore stdout redirection upon returning.
-  def self.out_s(*args, &blk)
+  def out_s(*args, &blk)
     __out_io(*__parse_args(args, blk)) { |tempf|
       tempf.read
     }
@@ -203,7 +205,7 @@ module Hysh
   #
   # Same as out_s, except the collected output string are right
   # stripped before return.
-  def self.out_ss(*args_in, &blk)
+  def out_ss(*args_in, &blk)
     s, ret = out_s(*args_in, &blk)
     [s.rstrip, ret]
   end
@@ -229,7 +231,7 @@ module Hysh
   # +Process.spawn+.  Feed each line of output to the block as +line+.
   # Return the exit success status of the forked sub-process or the
   # external program.  Restore stdout redirection upon returning.
-  def self.out_lines(*args_in, &blk)
+  def out_lines(*args_in, &blk)
     args, options, proc_arg = __parse_args args_in
     if block_given?
       __popen(nil, true, nil, args, options, proc_arg) { |pid, stdin, stdout, stderr|
@@ -250,7 +252,7 @@ module Hysh
   #   out_err_s(command...[, options]) -> [string, true or false]
   #
   # Same as out_s, except collect output of stderr too.
-  def self.out_err_s(*args_in, &blk)
+  def out_err_s(*args_in, &blk)
     args, options, proc_arg = __parse_args args_in, blk
     Tempfile.open(TEMP_BASE) { |tempf|
       tempf.unlink
@@ -273,12 +275,12 @@ module Hysh
   #
   # Same as out_err_s, except the collected output string are right
   # stripped before return.
-  def self.out_err_ss(*args_in, &blk)
+  def out_err_ss(*args_in, &blk)
     s, ret = out_err_s(*args_in, &blk)
     [s.rstrip. ret]
   end
 
-  def self.__in_io(args, options, proc_arg) # :nodoc:
+  def __in_io(args, options, proc_arg) # :nodoc:
     Tempfile.open(TEMP_BASE) { |tempf|
       tempf.unlink
       yield tempf
@@ -301,7 +303,7 @@ module Hysh
   # +Process.spawn+.  Return the return value of the block or the
   # function or the exit success status of the external program.
   # Restore stdin redirection upon returning.
-  def self.in_s(s, *args_in, &blk)
+  def in_s(s, *args_in, &blk)
     args, options, proc_arg = __parse_args args_in, blk
     __in_io(args, options, proc_arg) { |tempf|
       tempf.write s
@@ -315,7 +317,7 @@ module Hysh
   #
   # Same as +in_s+, except input string are specified via +lines+
   # (Array of String).
-  def self.in_lines(lines, *args_in, &blk)
+  def in_lines(lines, *args_in, &blk)
     args, options, proc_arg = __parse_args args_in, blk
     __in_io(args, options, proc_arg) { |tempf|
       lines.each { |line| tempf.write line }
@@ -329,7 +331,7 @@ module Hysh
   #
   # Redirect the stdin and stdout like that of +in_s+ and +out_s+,
   # return value is same of +out_s+.
-  def self.io_s(s, *args_in, &blk)
+  def io_s(s, *args_in, &blk)
     in_s(s) {
       out_s {
 	run *args_in, &blk
@@ -344,7 +346,7 @@ module Hysh
   #
   # Same as +io_s+, except the output string is right stripped before
   # returning.
-  def self.io_ss(s, *args_in, &blk)
+  def io_ss(s, *args_in, &blk)
     s = io_s(s, *args_in, &blk)
     s.rstrip
   end
@@ -357,7 +359,7 @@ module Hysh
   # When running the block, the non-zero exit status of running
   # external program are ignored.  The original behavior is restored
   # upon returning.
-  def self.ignore_on_command_error(&b)
+  def ignore_on_command_error(&b)
     with_set_globals(:@@on_command_error, IGNORE, &b)
   end
 
@@ -367,7 +369,7 @@ module Hysh
   # When running the block, the warning message will be print to
   # $stderr when the external program exited with non-zero status.
   # The original behavior is restored upon returning.
-  def self.warn_on_command_error(&b)
+  def warn_on_command_error(&b)
     with_set_globals(:@@on_command_error, WARN, &b)
   end
 
@@ -377,11 +379,11 @@ module Hysh
   # When running the block, an +Hysh::CommandError+ exception will be
   # raised when the external program exited with non-zero status.  The
   # original behavior is restored upon returning.
-  def self.raise_on_command_error(&b)
+  def raise_on_command_error(&b)
     with_set_globals(:@@on_command_error, RAISE, &b)
   end
 
-  def self.__parse_args(args, blk = nil) # :nodoc:
+  def __parse_args(args, blk = nil) # :nodoc:
     args = [args] unless args.is_a? Array
     if args.last.is_a?(Hash)
       options = args.pop
@@ -410,7 +412,7 @@ module Hysh
   # nil, the envioronment variable will be removed.  Multiple pairs of
   # the environment variable names and values can be specified.  The
   # changes to the environment are restored upon returning.
-  def self.with_change_env(*var_vals)
+  def with_change_env(*var_vals)
     orig_var_vals = var_vals.each_slice(2).map { |var, val|
       orig_val = ENV[var]
       [var, orig_val]
@@ -431,11 +433,11 @@ module Hysh
   #   chdir(dir) { ... }
   #
   # Same as +Dir.chdir+.
-  def self.chdir(dir, &b)
+  def chdir(dir, &b)
     Dir.chdir(dir, &b)
   end
 
-  def self.__spawn(args, options_in, proc_arg) # :nodoc:
+  def __spawn(args, options_in, proc_arg) # :nodoc:
     if proc_arg
       Process.fork {
 	fclose = options_in[:close] || []
@@ -473,7 +475,7 @@ module Hysh
   # sub-process, or run external program specified via +command+ and
   # +options+, +command+ and +options+ are same as that of
   # Process.spawn.  Return the +pid+.
-  def self.spawn(*args_in, &blk)
+  def spawn(*args_in, &blk)
     __spawn *__parse_args(args_in, blk)
   end
 
@@ -504,7 +506,7 @@ module Hysh
     attr_reader :status
   end
 
-  def self.__check_command_status(cmd) # :nodoc:
+  def __check_command_status(cmd) # :nodoc:
     unless $?.success?
       if @@on_command_error != IGNORE
 	err = CommandError.new(cmd, $?)
@@ -521,7 +523,7 @@ module Hysh
     end
   end
 
-  def self.__run(args, options, proc_arg) #:nodoc:
+  def __run(args, options, proc_arg) #:nodoc:
     if proc_arg
       args.first.()
     else
@@ -543,11 +545,11 @@ module Hysh
   # 0.  All IO redirections, environment change, current directory
   # change, etc. will take effect when running the block, the function
   # and the external program.
-  def self.run(*args_in, &blk)
+  def run(*args_in, &blk)
     __run *__parse_args(args_in, blk)
   end
 
-  def self.__check_close(*ios) # :nodoc:
+  def __check_close(*ios) # :nodoc:
     ios.each { |io|
       if io && !io.closed?
 	io.close
@@ -555,7 +557,7 @@ module Hysh
     }
   end
 
-  def self.__popen(stdin, stdout, stderr, args, options, proc_arg) # :nodoc:
+  def __popen(stdin, stdout, stderr, args, options, proc_arg) # :nodoc:
     options[:close] = [] if proc_arg
 
     stdin_in = stdin_out = nil
@@ -624,7 +626,7 @@ module Hysh
   #
   # If no block is given, the pid and stdin, stdout and stderr pipe
   # will be returned.
-  def self.popen(stdin, stdout, stderr, *args_in, &blk)
+  def popen(stdin, stdout, stderr, *args_in, &blk)
     args, options, proc_arg = __parse_args args_in
     options[:close] = [] if proc_arg
 
@@ -655,7 +657,7 @@ module Hysh
   #  command			# command without argument
   #  [function]			# function in an array
   #  function			# function
-  def self.pipe(*cmds, &blk)
+  def pipe(*cmds, &blk)
     if block_given?
       cmds.push [blk]
     end
@@ -734,7 +736,7 @@ module Hysh
   # +command_line+, and the block if given, from left to right.
   # +command_line+ is same as that of +pipe+.  Return the return value
   # or exit success status of the last function or external command.
-  def self.run_seq(*cmds, &blk)
+  def run_seq(*cmds, &blk)
     if block_given?
       cmds.push blk
     end
@@ -757,7 +759,7 @@ module Hysh
   # program and return the value.  If all failed, false or nil will be
   # returned.  If no function, external program, or block is given,
   # return false.
-  def self.run_or(*cmds, &blk)
+  def run_or(*cmds, &blk)
     if block_given?
       cmds.push blk
     end
@@ -787,7 +789,7 @@ module Hysh
   # last function, the block or the exit success status of the
   # external program.  If no function, external program, or block is
   # provided, return true.
-  def self.run_and(*cmds, &blk)
+  def run_and(*cmds, &blk)
     if block_given?
       cmds.push blk
     end
@@ -811,7 +813,7 @@ module Hysh
   #
   # Feed each line from $stdin to the block, if non-nil/false
   # returned, write the return value to the $stdout.
-  def self.filter_line
+  def filter_line
     $stdin.each_line { |line|
       if ret_line = yield(line)
 	$stdout.write ret_line
@@ -825,7 +827,7 @@ module Hysh
   #
   # Feed each character from $stdin to the block, if non-nil/false
   # returned, write the return value to the $stdout.
-  def self.filter_char
+  def filter_char
     $stdin.each_char { |ch|
       if ret_ch = yield(ch)
 	$stdout.write ret_ch
