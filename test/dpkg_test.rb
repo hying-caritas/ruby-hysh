@@ -31,3 +31,19 @@ def dpkg_installed2(package_names = nil)
     }
   }
 end
+
+def dpkg_installed3(package_names = nil)
+  hysh_script {
+    if package_names
+      pipe ['dpkg', '-l'] {
+	filter_line { |l|
+	  package_names.any? { |pkg|
+	    l.index pkg
+	  } && l
+	}
+      }
+    else
+      dpkg '-l'
+    end
+  }
+end
