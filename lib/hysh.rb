@@ -835,4 +835,51 @@ module Hysh
     }
     true
   end
+
+  def __with_add_hysh_to_self(s, &blk) # :nodoc:
+    sclass = s.singleton_class
+    mm_defined = sclass.instance_methods(false).include? :method_missing
+    mm_defined ||= sclass.private_instance_methods(false).include? :method_missing
+    class << s
+      alias __hysh_origin_method_missing__ method_missing
+      def method_missing(m, *args, &blk)
+	__hysh_origin_method_missing__ m, args, &blk
+      rescue NoMethodError
+	if Hysh.singleton_class.public_method_defined? m
+	  Hysh.send m, *args, &blk
+	else
+	  Hysh.run m.to_s, *args.map { |a| a.to_s }, &blk
+	end
+      end
+    end
+    s.instance_eval &blk
+  ensure
+    class << s
+      remove_method :method_missing
+    end
+    if mm_defined
+      class << s
+	alias method_missing __hysh_origin_method_missing__
+      end
+    end
+    class << s
+      remove_method :__hysh_origin_method_missing__
+    end
+  end
+end
+
+# :call-seq:
+#   hysh_script { ... }
+#
+# Call the block, in addition to the methods, variables reference of
+# current self object, the public methods in Hysh module can be called
+# directly too, and all other method callings are regarded as external
+# program running.  That is, if there is no ls method defined for
+# self, you can run it via
+#
+#   hysh_script {
+#     ls
+#   }
+def hysh_script(&blk)
+  Hysh.__with_add_hysh_to_self(self, &blk)
 end
