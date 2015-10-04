@@ -9,7 +9,7 @@ Common Lisp: https://github.com/hying-caritas/hysh).
 
 == Example
 
-  def dpkg_installed(package_names = nil)
+  def dpkg_installed1(package_names = nil)
     Hysh.out_lines ->{
       Hysh.pipe ['dpkg', '-l'],
         if package_names
@@ -20,9 +20,9 @@ Common Lisp: https://github.com/hying-caritas/hysh).
     }
   end
 
-or write the filter in Ruby.
+or write the filter in Ruby,
 
-  def dpkg_installed(package_names = nil)
+  def dpkg_installed2(package_names = nil)
     Hysh.out_lines ->{
       Hysh.pipe ['dpkg', '-l'] {
         proc_line = if package_names
@@ -38,6 +38,24 @@ or write the filter in Ruby.
   		  end
         Hysh.filter_line &proc_line
       }
+    }
+  end
+
+or use the hysh_script,
+
+  def dpkg_installed3(package_names = nil)
+    hysh_script {
+      if package_names
+        pipe ['dpkg', '-l'] {
+          filter_line { |l|
+            package_names.any? { |pkg|
+              l.index pkg
+            } && l
+          }
+        }
+      else
+        dpkg '-l'
+      end
     }
   end
 
