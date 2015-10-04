@@ -37,3 +37,32 @@ describe Hysh do
     end
   end
 end
+
+class TestScript
+  def test
+    @x = 4
+    hysh_script {
+      pipe ['echo', '1', '2'], ['wc', '-w']
+    }
+  end
+end
+
+def test_script
+  t = TestScript.new
+  class << t
+    def method_missing(m, *args)
+      raise NoMethodError
+    end
+  end
+  t
+end
+
+describe "hysh_script" do
+  it "run Hysh methods directly" do
+    expect(hysh_script { out_ss { run "echo", "12" } }).to eql(["12", true])
+  end
+  it "run commands as function" do
+    expect(hysh_script { out_ss { echo 12 } }).to eql(["12", true])
+    expect(Hysh.out_ss { test_script.test }).to eql(["2", true])
+  end
+end
